@@ -21,8 +21,8 @@ const Chip = ({
 }: ChipProps) => {
   return (
     <button
-      className={cl("px-4 py-2 rounded-full text-gray-200 shadow text-base", {
-        [`bg-indigo-500 text-white`]: selected && !disabled,
+      className={cl("px-4 py-2 rounded-full text-gray-500 shadow text-base", {
+        [`bg-indigo-500 !text-white`]: selected && !disabled,
         [`text-gray-200 text-gray-300 pointer-events-none`]: disabled,
         ["deceased"]: disabled,
       })}

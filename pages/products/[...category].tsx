@@ -20,9 +20,9 @@ export default function ProductsPage({
       </h1>
       <div className="flex flex-col gap-y-4">
         <span>Query parsed from getStaticProps:</span>
-        <span className="p-4">
+        <p className="whitespace-pre-wrap">
           {JSON.stringify(queryFromGetStaticProps, null, 2)}
-        </span>
+        </p>
       </div>
     </div>
   );
@@ -30,12 +30,12 @@ export default function ProductsPage({
   return (
     <div className="container mx-auto px-12">
       <div className="flex flex-col gap-y-4">
-        {getTopInfo}
         <div className="flex items-start flex-wrap gap-4">
+          <div className="grow md:basis-2/12">{getTopInfo}</div>
           <div className="grow md:basis-2/12">
             <Filters />
           </div>
-          <div className="grow md:basis-8/12 w-full">
+          <div className="grow md:basis-7/12 w-full">
             <Products />
           </div>
         </div>

@@ -1,3 +1,5 @@
 export const query = {
-    page: "page"
-}
+  page: "page",
+  color: "color",
+  sort: "sort",
+};
