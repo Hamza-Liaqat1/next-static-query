@@ -1,13 +1,29 @@
 import Chip from "../ui/chip";
-import { usePathQuery } from "../../hooks";
+import { useIsQueryExist, useClearQuery, usePathQuery } from "../../hooks";
 import { query } from "../../static-data/query";
 
 const colors = ["blue", "yellow", "indigo", "orange"];
 const sortOptions = ["new", "priceLow", "priceHigh"];
 
 const Filters = () => {
+  const [isExist] = useIsQueryExist();
+  const [clear] = useClearQuery();
+
+  const clearAllQuery = async () => {
+    await clear();
+  };
+
   return (
     <div className="flex flex-col gap-y-8 p-4">
+      {isExist && (
+        <button
+          type="button"
+          onClick={clearAllQuery}
+          className="p-2 border rounded"
+        >
+          Clear query
+        </button>
+      )}
       <Sort />
       <ColorsFilter />
     </div>
