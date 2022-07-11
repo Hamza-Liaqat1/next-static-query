@@ -2,6 +2,7 @@ import { GetStaticPaths, GetStaticProps } from "next";
 import Products from "../../components/products";
 import { ParsedUrlQuery } from "querystring";
 import Filters from "../../components/filters";
+import { query } from "../../static-data/query";
 
 interface ProductPage {
   selectedCategory: string;
@@ -59,25 +60,42 @@ export const getStaticProps: GetStaticProps = async (context) => {
     (m) => m.convertPathToQuery
   );
 
+  // Your utils to right query interpretation before request data
+  const myHandyQueryUtils = await import("../../utils/query");
+
   // Get category from url
   const category = context?.params?.category && context.params.category[0];
   if (!category) {
     return { notFound: true };
   }
 
-  let query: ParsedUrlQuery = {};
+  let parsedQuery: ParsedUrlQuery = {};
   // Get other part of url path and if exist try to parse query
   const queryParams = context?.params?.category && context.params.category[1];
   if (queryParams) {
-    query = pathToQuery(queryParams);
+    parsedQuery = pathToQuery(queryParams);
   }
 
-  // Fetch products by category and query params and pass to page props...
+  const paginationInfo = myHandyQueryUtils.getPagination(
+    parsedQuery,
+    query.page
+  );
+  const sortInfo = myHandyQueryUtils.getProductsSort(parsedQuery);
+  const colors = myHandyQueryUtils.getMultiValue(parsedQuery, query.color);
+
+  console.log(
+    `Server side Pagination: ${JSON.stringify(paginationInfo, null, 2)}`
+  );
+  console.log(`Server side Sort value ${JSON.stringify(sortInfo, null, 2)}`);
+
+  console.log(`Server side Colors" ${JSON.stringify(colors, null, 2)}`);
+
+  // Fetch products by category and prepared query params and pass to page props...
 
   // For the example, I'm wiring the category and the query itself to the page
   const data: ProductPage = {
     selectedCategory: category,
-    queryFromGetStaticProps: query,
+    queryFromGetStaticProps: parsedQuery,
   };
 
   return {
