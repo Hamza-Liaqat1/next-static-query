@@ -6,4 +6,8 @@
   .buttonBase {
     @apply inline-flex items-center justify-center gap-x-4 rounded py-2 px-3 bg-gray-50 shadow border text-base text-gray-800 hover:bg-gray-100;
   }
+
+  .productCard {
+    @apply flex items-center justify-center gap-x-4 rounded shadow border text-base bg-gray-50 px-12 py-24
+  }
 }
