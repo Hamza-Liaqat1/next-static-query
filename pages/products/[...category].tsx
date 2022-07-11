@@ -1,6 +1,7 @@
 import { GetStaticPaths, GetStaticProps } from "next";
 import Products from "../../components/products";
 import { ParsedUrlQuery } from "querystring";
+import Filters from "../../components/filters";
 
 interface ProductPage {
   selectedCategory: string;
@@ -27,9 +28,18 @@ export default function ProductsPage({
   );
 
   return (
-    <div className="flex flex-col gap-y-4">
-      {getTopInfo}
-      <Products />
+    <div className="container mx-auto px-12">
+      <div className="flex flex-col gap-y-4">
+        {getTopInfo}
+        <div className="flex items-start flex-wrap gap-4">
+          <div className="grow md:basis-2/12">
+            <Filters />
+          </div>
+          <div className="grow md:basis-8/12 w-full">
+            <Products />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
