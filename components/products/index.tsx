@@ -1,5 +1,7 @@
 import Pagination from "../ui/pagination";
+import { query } from "../../static-data/query";
 
+// Inject fetched products with applied filters or not
 const Products = () => {
   return (
     <div className="flex flex-col items-center gap-y-4">
@@ -14,8 +16,7 @@ const Products = () => {
             ))}
         </div>
       </div>
-
-      <Pagination queryKey="page" pages={5} />
+      <Pagination queryKey={query.page} pages={5} />
     </div>
   );
 };
