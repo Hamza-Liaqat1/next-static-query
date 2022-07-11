@@ -12,23 +12,13 @@ yarn dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `pages/index.tsx`. The page auto-updates as you edit the file.
+This is an example of SSG working with a complex query via a custom hook.
 
-[API routes](https://nextjs.org/docs/api-routes/introduction) can be accessed on [http://localhost:3000/api/hello](http://localhost:3000/api/hello). This endpoint can be edited in `pages/api/hello.ts`.
+It's not a perfect solution, but it allows you to switch from SSG to SSR without changing the whole project. Just comment out getStaticPaths and change the getStaticProps function to getServerSideProps and voila, you just switched from static pregeneration to fully working SSR and you don't need to do anything inside the project because it supports single interface ParsedUrlQuery
 
-The `pages/api` directory is mapped to `/api/*`. Files in this directory are treated as [API routes](https://nextjs.org/docs/api-routes/introduction) instead of React pages.
+And of course the main idea is to make complex filters with SSG.
 
-## Learn More
+If you're thinking of doing an NPM package that would be great since I don't have a lot of time.
 
-To learn more about Next.js, take a look at the following resources:
+Otherwise, you can clone and copy the hook and use it.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
