@@ -1,6 +1,6 @@
 import dynamic from "next/dynamic";
 import React, { useEffect } from "react";
-import { usePathQuery } from "../../hooks";
+import { useGetQueryPath, usePathQuery } from "../../hooks";
 import Link from "next/link";
 import cl from "classnames";
 
@@ -20,10 +20,9 @@ interface PaginationProps extends React.ComponentPropsWithoutRef<"div"> {
 
 const StrapiPagination = ({ queryKey, pages = 5 }: PaginationProps) => {
   // We need state, function to change state, and function to generate next link for fully link pagination
-  const [selectedPage, setSelectedPage, getQueryPath] = usePathQuery<number>(
-    queryKey,
-    1
-  );
+  const { getQueryPath } = useGetQueryPath<number>();
+  const [selectedPage, setSelectedPage] = usePathQuery<number>(queryKey, 1);
+
   const isFirst = selectedPage - 1 === 0;
   const isLast = selectedPage + 1 > pages;
 
@@ -45,7 +44,10 @@ const StrapiPagination = ({ queryKey, pages = 5 }: PaginationProps) => {
       .map((_, i) => {
         const normalPage = i + 1;
         return (
-          <Link key={normalPage} href={{ pathname: getQueryPath(normalPage) }}>
+          <Link
+            key={normalPage}
+            href={{ pathname: getQueryPath(normalPage, queryKey) }}
+          >
             <a
               className={cl("buttonBase", {
                 ["!bg-indigo-600 !text-gray-50 pointer-events-none"]:
@@ -63,7 +65,7 @@ const StrapiPagination = ({ queryKey, pages = 5 }: PaginationProps) => {
     <nav className="inline-flex gap-x-2">
       <Link
         href={{
-          pathname: getQueryPath(selectedPage - 1),
+          pathname: getQueryPath(selectedPage - 1, queryKey),
         }}
         passHref
       >
@@ -78,7 +80,7 @@ const StrapiPagination = ({ queryKey, pages = 5 }: PaginationProps) => {
       {renderPages()}
       <Link
         href={{
-          pathname: getQueryPath(selectedPage + 1),
+          pathname: getQueryPath(selectedPage + 1, queryKey),
         }}
         passHref
       >

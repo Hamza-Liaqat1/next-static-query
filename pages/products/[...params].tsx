@@ -56,22 +56,20 @@ export const getStaticPaths: GetStaticPaths = async () => {
 // by simply commenting out getStaticPaths and renaming the getServerSideProps function since one query format is used
 
 export const getStaticProps: GetStaticProps = async (context) => {
-  const pathToQuery = await import("../../hooks").then(
-    (m) => m.convertPathToQuery
-  );
+  const pathToQuery = await import("../../hooks").then((m) => m.convertToQuery);
 
   // Your utils to right query interpretation before request data
   const myHandyQueryUtils = await import("../../utils/query");
 
   // Get category from url
-  const category = context?.params?.category && context.params.category[0];
+  const category = context?.params?.params && context.params.params[0];
   if (!category) {
     return { notFound: true };
   }
 
   let parsedQuery: ParsedUrlQuery = {};
   // Get other part of url path and if exist try to parse query
-  const queryParams = context?.params?.category && context.params.category[1];
+  const queryParams = context?.params?.params && context.params.params[1];
   if (queryParams) {
     parsedQuery = pathToQuery(queryParams);
   }

@@ -1,12 +1,12 @@
 import Chip from "../ui/chip";
-import { useIsQueryExist, useClearQuery, usePathQuery } from "../../hooks";
 import { query } from "../../static-data/query";
+import { useClearQuery, useIsQueryExist, usePathQuery } from "../../hooks";
 
 const colors = ["blue", "yellow", "indigo", "orange"];
 const sortOptions = ["new", "priceLow", "priceHigh"];
 
 const Filters = () => {
-  const [isExist] = useIsQueryExist();
+  const [isExist] = useIsQueryExist(query.page);
   const [clear] = useClearQuery();
 
   const clearAllQuery = async () => {

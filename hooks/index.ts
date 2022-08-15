@@ -1,4 +1,5 @@
 import { useRouter } from "next/router";
+// import qs, { ParsedQs } from "qs";
 import { ParsedUrlQuery } from "querystring";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -11,247 +12,357 @@ interface TransitionOptions {
 const valueDelimiter = "_";
 const keyValueDelimiter = "=";
 const queryPartsDelimiter = ";";
-const pathDelimiter = "/";
 
-// Helper hook - detect any path query
-export function useIsQueryExist() {
+const getQueryPart = (routerQuery: string | string[], position: number = 1) => {
+  return Array.isArray(routerQuery) ? routerQuery[position] : routerQuery;
+};
+
+const getRestQuery = (routerQuery: string | string[], position: number = 1) => {
+  return Array.isArray(routerQuery)
+    ? routerQuery.slice(0, position)
+    : undefined;
+};
+
+const createQuery = (newQueryPath: string, restQuery?: string | string[]) => {
+  return Array.isArray(restQuery)
+    ? restQuery.concat(newQueryPath)
+    : newQueryPath;
+};
+
+const createLink = (pathname: string, query: string) => {
+  return pathname.replace(/\[[^\]]*]/, encodeURI(query));
+};
+
+/**
+ * @summary Detect is query exist
+ * @param {string} exclude exclude key from search - can be page
+ * @param {string} nextKey Next query key
+ * @param {number} position on next route position
+ * @return {boolean} IsQuery exist
+ */
+export function useIsQueryExist(
+  exclude?: string,
+  nextKey: string = "params",
+  position: number = 1
+) {
   const router = useRouter();
   const [isExist, setIsExist] = useState<boolean>(false);
 
   useEffect(() => {
-    const query = getQueryPart(router.asPath);
-    if (query !== undefined) {
-      setIsExist(true);
-    } else {
+    const routerQuery = router.query[nextKey];
+
+    if (!routerQuery) {
       setIsExist(false);
+      return;
     }
-  }, [router.asPath]);
+
+    if (Array.isArray(routerQuery) && !routerQuery[position]) {
+      setIsExist(false);
+      return;
+    }
+
+    setIsExist(isQueryExits(getQueryPart(routerQuery, position), exclude));
+  }, [exclude, nextKey, position, router.query, router.query.params]);
 
   return [isExist] as const;
 }
 
-// Helper hook - clear all query
-export function useClearQuery() {
+/**
+ * @summary Detect query existing, with optional key exclude
+ * @param {string} queryPart string query
+ * @param {string} exclude exclude key from detection
+ * @return {boolean}
+ */
+export const isQueryExits = (queryPart?: string, exclude?: string) => {
+  if (queryPart === undefined) {
+    return false;
+  }
+
+  if (exclude && queryPart.includes(exclude)) {
+    const parts = queryPart.split(queryPartsDelimiter);
+    return parts.length - 1 > 0;
+  }
+
+  return true;
+};
+
+/**
+ * @summary Remove only QUERY part
+ * @param {string} nextKey
+ * @param {number} position
+ * @return {[callback]} Clear async function
+ */
+export function useClearQuery(
+  nextKey: string = "params",
+  position: number = 1
+) {
   const router = useRouter();
-  const isExist = useIsQueryExist();
 
   const handleClear = async (options?: TransitionOptions) => {
-    if (isExist) {
-      const clearPath = getPathWithoutQuery(router.asPath);
-      await router.push({ pathname: clearPath }, undefined, {
+    const nextQueryPart = router.query[nextKey];
+
+    if (!nextQueryPart) {
+      return;
+    }
+
+    const isExist = isQueryExits(getQueryPart(nextQueryPart, position));
+
+    if (!isExist) {
+      return;
+    }
+
+    await router.push(
+      {
+        pathname: router.pathname,
+        query: { [nextKey]: getRestQuery(nextQueryPart, position) },
+      },
+      undefined,
+      {
         shallow: options?.isShallow,
         scroll: options?.isScroll,
-      });
-    }
+      }
+    );
   };
 
   return [handleClear] as const;
 }
 
-// Main hook
+/**
+ * @summary Hook for client side routing and query manipulation
+ * @param {string} key Query key
+ * @param {@generic} initialValue initial value
+ * @param {string} nextKey Default params - Next dynamic route name [...params] or others
+ * @param {string} position If dynamic route with catch all then you must specify query position
+ * @description If dynamic route with catch all then you must specify query position
+ * @description for example /route/dynamic_category/query so position 1 because next creates query.params = [dynamic_category, query]
+ * @return {[query, callback]} Return useState like tuple with first state and change state function
+ */
 export function usePathQuery<T extends number | string | string[]>(
   key: string,
-  initialValue: T
+  initialValue: T,
+  nextKey: string = "params",
+  position: number = 1
 ) {
   const router = useRouter();
   const [query, setQuery] = useState<T>(initialValue);
   const { current: initialValueRef } = useRef(initialValue);
 
-  // Initialize query
   useEffect(() => {
-    const path = router.asPath;
-    const initialQuery = generateInitialQuery(path);
-
     const initializeQuery = () => {
       setQuery(initialValueRef);
     };
 
+    const routerQuery = router.query[nextKey];
+
+    if (!routerQuery) {
+      initializeQuery();
+      return;
+    }
+
+    const queryPart = getQueryPart(routerQuery, position);
+
+    if (!queryPart) {
+      initializeQuery();
+      return;
+    }
+
+    const initialQuery = convertToQuery(queryPart);
     if (!initialQuery || !initialQuery[key]) {
       initializeQuery();
       return;
     }
 
     const value = initialQuery[key];
-
     if (!value) {
       initializeQuery();
       return;
     }
 
-    if (typeof initialValueRef === "number") {
-      if (typeof value !== "string" || isNaN(parseInt(value, 10))) {
-        initializeQuery();
-        return;
-      }
-      const numberValue = parseInt(value, 10) as T;
-      setQuery(numberValue);
-      return;
-    }
+    switch (typeof initialValueRef) {
+      case "number": {
+        if (typeof value !== "string" || isNaN(parseInt(value, 10))) {
+          initializeQuery();
+          return;
+        }
 
-    if (typeof initialValueRef === "string") {
-      if (typeof value !== "string") {
-        initializeQuery();
+        const numberValue = parseInt(value, 10) as T;
+        setQuery(numberValue);
         return;
       }
-      setQuery(value as T);
-      return;
+
+      case "string": {
+        if (typeof value !== "string") {
+          initializeQuery();
+          return;
+        }
+        setQuery(value as T);
+        return;
+      }
     }
 
     if (Array.isArray(initialValueRef)) {
-      let valuesArray: string[] = [];
+      let valuesArray: string[];
+
       if (typeof value === "string") {
         valuesArray = [value];
       } else {
-        valuesArray = value;
+        valuesArray = value as string[];
       }
+
       setQuery(valuesArray as T);
       return;
     }
-  }, [router, initialValueRef, key]);
+  }, [initialValueRef, key, nextKey, position, router.query]);
 
-  // Change query state with options
   const changeQuery = useCallback(
     async (newValue: typeof initialValue, options?: TransitionOptions) => {
-      const path = router.asPath;
-      const nowQuery = generateInitialQuery(path);
+      const routerQuery = router.query[nextKey];
 
-      // If query don't exist create new query
-      if (!nowQuery) {
-        let newQueryPath: string = "";
-        if (typeof newValue === "number") {
-          newQueryPath = convertQueryToPath({ [key]: newValue.toString() });
-        } else {
-          newQueryPath = convertQueryToPath({ [key]: newValue });
-        }
-        await router.push(
-          { pathname: createPath(path, newQueryPath) },
-          undefined,
-          { shallow: options?.isShallow, scroll: options?.isScroll }
-        );
+      const parsedValue =
+        typeof newValue === "number"
+          ? newValue.toString()
+          : (newValue as string | string[]);
+
+      if (!routerQuery) {
+        const newQuery = convertQueryToPath({ [key]: parsedValue });
+        await router.push({ query: { [nextKey]: newQuery } }, undefined, {
+          shallow: options?.isShallow,
+          scroll: options?.isScroll,
+        });
         return;
       }
 
-      // Clear path and query if new array value is empty
-      if (Array.isArray(newValue)) {
-        if (!newValue.some((c) => !!c)) {
-          delete nowQuery[key];
-          const updatedQueryPath = convertQueryToPath(nowQuery);
+      const restQuery = getRestQuery(routerQuery, position);
+      const queryPart = getQueryPart(routerQuery, position);
+
+      if (!queryPart) {
+        const newQueryPath = convertQueryToPath({ [key]: parsedValue });
+        const newQuery = createQuery(newQueryPath, restQuery);
+
+        await router.push({ query: { [nextKey]: newQuery } }, undefined, {
+          shallow: options?.isShallow,
+          scroll: options?.isScroll,
+        });
+        return;
+      }
+
+      const freshQuery = convertToQuery(queryPart);
+
+      if (Array.isArray(parsedValue)) {
+        if (!parsedValue.some((c) => !!c)) {
+          delete freshQuery[key];
+          const updatedQueryPath = convertQueryToPath(freshQuery);
+
           setQuery(newValue);
-          await router.push(
-            { pathname: createPath(path, updatedQueryPath) },
-            undefined,
-            { shallow: options?.isShallow, scroll: options?.isScroll }
-          );
+
+          const newQuery = createQuery(updatedQueryPath, restQuery);
+
+          await router.push({ query: { [nextKey]: newQuery } }, undefined, {
+            shallow: options?.isShallow,
+            scroll: options?.isScroll,
+          });
           return;
         }
       }
 
-      // Update query object by key
-      if (typeof newValue === "number") {
-        nowQuery[key] = newValue.toString();
-      } else {
-        nowQuery[key] = newValue;
-      }
+      freshQuery[key] = parsedValue;
 
-      // Remove keys if needed
       if (options?.removeKeys && options.removeKeys.some((k) => !!k)) {
         options.removeKeys.forEach((keyToRemove) => {
-          delete nowQuery[keyToRemove];
+          delete freshQuery[keyToRemove];
         });
       }
 
-      // Create new query and push to router
-      const updatedQueryPath = convertQueryToPath(nowQuery);
-      await router.push(
-        { pathname: createPath(path, updatedQueryPath) },
-        undefined,
-        { shallow: options?.isShallow, scroll: options?.isScroll }
-      );
+      const newQueryPath = convertQueryToPath(freshQuery);
+      const newQuery = createQuery(newQueryPath, restQuery);
+
+      await router.push({ query: { [nextKey]: newQuery } }, undefined, {
+        shallow: options?.isShallow,
+        scroll: options?.isScroll,
+      });
     },
-    [key, router]
+    [key, nextKey, position, router]
   );
 
-  // Get string link for value, useful when need to calculate next link without deleting other queries
+  return [query, changeQuery] as const;
+}
+
+/**
+ * @summary Create string link for query key without deleting other query params
+ * @param {string} nextKey Default params - Next dynamic route name [...params] or others
+ * @param {string} position If dynamic route with catch all then you must specify query position
+ * @description If dynamic route with catch all then you must specify query position
+ * @description for example /route/dynamic_category/query so position 1 because next creates query.params = [dynamic_category, query]
+ * @return {string} Link
+ */
+export function useGetQueryPath<T extends number | string | string[]>(
+  nextKey: string = "params",
+  position: number = 1
+) {
+  const router = useRouter();
+
   const getQueryPath = (
-    nextValue: typeof initialValue,
+    nextValue: T,
+    key: string,
     removeKeys?: string[]
   ): string => {
-    const path = router.asPath;
-    const nextQuery = generateInitialQuery(path);
+    const path = router.pathname;
+    const routerQuery = router.query[nextKey];
 
-    if (!nextQuery) {
-      let newQueryPath: string;
-      if (typeof nextValue === "number") {
-        newQueryPath = convertQueryToPath({ [key]: nextValue.toString() });
-      } else {
-        newQueryPath = convertQueryToPath({ [key]: nextValue });
-      }
-      return createPath(path, newQueryPath);
+    const parsedValue =
+      typeof nextValue === "number"
+        ? nextValue.toString()
+        : (nextValue as string | string[]);
+
+    if (!routerQuery) {
+      const newQuery = convertQueryToPath({ [key]: parsedValue });
+      return createLink(path, newQuery);
     }
 
-    nextQuery[key] = nextValue.toString();
+    const restQuery = getRestQuery(routerQuery, position);
+    const queryPart = getQueryPart(routerQuery, position);
+
+    if (!queryPart) {
+      const newQueryPath = convertQueryToPath({ [key]: parsedValue });
+      const newQuery = createQuery(newQueryPath, restQuery);
+
+      const parsedPath = Array.isArray(newQuery)
+        ? newQuery.join("/")
+        : newQuery;
+
+      return createLink(path, parsedPath);
+    }
+
+    const freshQuery = convertToQuery(queryPart);
+
+    freshQuery[key] = parsedValue;
 
     if (removeKeys && removeKeys.some((k) => !!k)) {
       removeKeys.forEach((keyToRemove) => {
-        delete nextQuery[keyToRemove];
+        delete freshQuery[keyToRemove];
       });
     }
 
-    const updatedQueryPath = convertQueryToPath(nextQuery);
-    return createPath(path, updatedQueryPath);
+    const newQueryPath = convertQueryToPath(freshQuery);
+    const newQuery = createQuery(newQueryPath, restQuery);
+
+    const parsedPath = Array.isArray(newQuery) ? newQuery.join("/") : newQuery;
+
+    return createLink(path, parsedPath);
   };
 
-  return [query, changeQuery, getQueryPath] as const;
+  return { getQueryPath } as const;
 }
 
-// Path utils for creating hooks
-
-// Create path with new query
-const createPath = (stringPath: string, queryPath: string) => {
-  return encodeURI(getPathWithoutQuery(stringPath) + queryPath);
-};
-
-// Create clear path without query
-const getPathWithoutQuery = (stringPath: string) => {
-  const decodedPath = decodeURI(stringPath);
-
-  if (decodedPath.includes(keyValueDelimiter)) {
-    return decodedPath.substring(0, decodedPath.lastIndexOf(pathDelimiter) + 1);
-  } else {
-    return decodedPath + pathDelimiter;
-  }
-};
-
-// Get query from path if exist
-const getQueryPart = (stringPath: string) => {
-  const decodedPath = decodeURI(stringPath);
-
-  if (decodedPath.includes(keyValueDelimiter)) {
-    return decodedPath.substring(decodedPath.lastIndexOf(pathDelimiter) + 1);
-  }
-
-  return undefined;
-};
-
-// Create query from path
-const generateInitialQuery = (stringPath: string) => {
-  const queryPart = getQueryPart(stringPath);
-  if (queryPart) {
-    return convertPathToQuery(queryPart);
-  }
-
-  return undefined;
-};
-
-// Convert query string to query object, sort query by key for URL Matching
-export function convertPathToQuery(path: string): ParsedUrlQuery {
+/**
+ * @summary Convert path to query
+ * @param {string} path
+ * @return {ParsedUrlQuery} Query
+ */
+export function convertToQuery(path: string): ParsedUrlQuery {
   const decodedPath = decodeURI(path);
 
-  const queryParts = decodedPath.split(queryPartsDelimiter).sort((a, b) => {
-    if (a[0] < b[0]) return -1;
-    if (a[0] > b[0]) return 1;
-    return 0;
-  });
+  const queryParts = decodedPath.split(queryPartsDelimiter);
   const query: ParsedUrlQuery = {};
 
   queryParts.forEach((part) => {
@@ -260,11 +371,7 @@ export function convertPathToQuery(path: string): ParsedUrlQuery {
     const value = part.substring(lastIndex + 1);
 
     if (value.includes(valueDelimiter)) {
-      query[key] = value.split(valueDelimiter).sort((a, b) => {
-        if (a < b) return -1;
-        if (a > b) return 1;
-        return 0;
-      });
+      query[key] = value.split(valueDelimiter);
     } else {
       query[key] = value;
     }
@@ -272,7 +379,12 @@ export function convertPathToQuery(path: string): ParsedUrlQuery {
   return query;
 }
 
-// Create string path by query always sort by query key or if query contains multi value sort by value for URL Matching
+/**
+ * @summary Create path from query with key and values sort for predictable URL
+ * @description My custom parser
+ * @param {ParsedUrlQuery} query Query
+ * @return {string} path
+ */
 export function convertQueryToPath(query: ParsedUrlQuery) {
   const stringsQuery: string[] = [];
   for (const [key, value] of Object.entries(query).sort((a, b) => {
@@ -299,3 +411,33 @@ export function convertQueryToPath(query: ParsedUrlQuery) {
 
   return stringsQuery.join(queryPartsDelimiter);
 }
+
+/**
+ * @summary Use custom convert to query function
+ * @description for example qs library
+ * @param {string} path string query
+ * @return {ParsedQs} parsed qs format
+ */
+// export function convertToQuery(path: string) {
+//   return qs.parse(path, {
+//     ignoreQueryPrefix: true,
+//     depth: 1,
+//     delimiter: queryPartsDelimiter,
+//   });
+// }
+
+/**
+ * @summary Use custom convert to path function
+ * @description qs supports only key sort
+ * @param {ParsedQs | ParsedUrlQuery} query Query
+ * @return {string} Parsed query
+ */
+// export function convertQueryToPath(query: ParsedQs | ParsedUrlQuery) {
+//   return qs.stringify(query, {
+//     delimiter: queryPartsDelimiter,
+//     encodeValuesOnly: true,
+//     sort: function alphabeticalSort(a, b) {
+//       return a.localeCompare(b);
+//     },
+//   });
+// }
